@@ -1,0 +1,16 @@
+/**
+ * Global styles using Tailwind directives.
+ *
+ * Imports Tailwind base, components, and utilities.
+ * Custom base styles ensure consistent dark background and text colors.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-background text-text;
+  }
+}
