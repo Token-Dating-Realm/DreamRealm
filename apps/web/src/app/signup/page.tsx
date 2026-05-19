@@ -8,6 +8,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../components/AuthProvider";
 
 export default function SignupPage() {
@@ -95,9 +96,9 @@ export default function SignupPage() {
         </form>
         <p className="mt-4 text-center text-sm text-text-muted">
           Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="font-semibold text-primary hover:underline">
             Sign in
-          </a>
+          </Link>
         </p>
       </div>
     </main>

@@ -9,6 +9,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../components/AuthProvider";
 
 export default function LoginPage() {
@@ -101,12 +102,19 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-text-muted">
-          Don&apos;t have an account?{" "}
-          <a href="/signup" className="text-primary hover:underline">
-            Sign up
-          </a>
-        </p>
+        <div className="mt-6 space-y-2 text-center text-sm text-text-muted">
+          <p>
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="font-semibold text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
+          <p>
+            <Link href="/forgot-password" className="text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );

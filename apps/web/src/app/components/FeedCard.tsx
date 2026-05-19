@@ -6,6 +6,8 @@
 
 "use client";
 
+import { POST_TYPE_LABELS, POST_TYPE_COLORS, type PostType } from "../lib/posts";
+
 interface FeedCardProps {
   author: string;
   avatar?: string;
@@ -14,9 +16,22 @@ interface FeedCardProps {
   realmName?: string;
   likes?: number;
   comments?: number;
+  isLiked?: boolean;
+  onLike?: () => void;
+  type?: PostType;
 }
 
-export default function FeedCard({ author, timeAgo, content, realmName, likes = 0, comments = 0 }: FeedCardProps) {
+export default function FeedCard({
+  author,
+  timeAgo,
+  content,
+  realmName,
+  likes = 0,
+  comments = 0,
+  isLiked = false,
+  onLike,
+  type,
+}: FeedCardProps) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-5 transition hover:border-primary/30 hover:shadow-glow/50">
       <div className="mb-3 flex items-center gap-3">
@@ -24,7 +39,14 @@ export default function FeedCard({ author, timeAgo, content, realmName, likes = 
           {author.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-text">{author}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-text">{author}</p>
+            {type && (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${POST_TYPE_COLORS[type]}`}>
+                {POST_TYPE_LABELS[type]}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-text-muted">
             <span>{timeAgo}</span>
             {realmName && (
@@ -38,8 +60,11 @@ export default function FeedCard({ author, timeAgo, content, realmName, likes = 
       </div>
       <p className="mb-4 text-sm leading-relaxed text-text-muted">{content}</p>
       <div className="flex items-center gap-5 text-xs text-text-muted">
-        <button className="flex items-center gap-1.5 transition hover:text-primary">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <button
+          onClick={onLike}
+          className={`flex items-center gap-1.5 transition ${isLiked ? "text-accent" : "hover:text-primary"}`}
+        >
+          <svg className="h-4 w-4" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
           <span>{likes}</span>

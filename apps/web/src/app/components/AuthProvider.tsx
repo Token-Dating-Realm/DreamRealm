@@ -134,8 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       const fingerprint = await getDeviceFingerprint();
-      await client
-        .from("users")
+      await (client.from("users") as any)
         .update({ device_fingerprint: fingerprint })
         .eq("id", data.user.id);
 

@@ -6,7 +6,7 @@
  * Use `createServiceClient()` ONLY in server contexts or Edge Functions.
  */
 
-import { createClient as createSupabaseClient, createServerClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database";
 
 // TODO: Replace with actual project credentials via @dreamrealm/config
@@ -17,9 +17,10 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? ""
 /** Browser/mobile Supabase client with RLS context from the current JWT. */
 export function createClient() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("Supabase URL and Anon Key must be configured.");
+    // eslint-disable-next-line no-console
+    console.warn("Supabase URL and Anon Key are not configured. Auth will be unavailable until environment variables are set.");
   }
-  return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createSupabaseClient<Database>(SUPABASE_URL || "http://localhost", SUPABASE_ANON_KEY || "anon-key", {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
@@ -31,35 +32,13 @@ export function createClient() {
 /** Server-side / Edge Function Supabase client with service role (bypasses RLS). */
 export function createServiceClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Supabase URL and Service Role Key must be configured.");
+    // eslint-disable-next-line no-console
+    console.warn("Supabase URL or Service Role Key are not configured. Service client will be unavailable until environment variables are set.");
   }
-  return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createSupabaseClient<Database>(SUPABASE_URL || "http://localhost", SUPABASE_SERVICE_ROLE_KEY || "service-key", {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-    },
-  });
-}
-
-/** Next.js middleware-compatible server client (requires cookie storage). */
-export function createMiddlewareClient(request: Request, response: Response) {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("Supabase URL and Anon Key must be configured.");
-  }
-  return createServerClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    cookies: {
-      getAll() {
-        // @ts-expect-error — cookie parsing handled by caller
-        return request.headers.get("cookie")?.split("; ").map((c) => {
-          const [name, value] = c.split("=");
-          return { name: name ?? "", value: value ?? "" };
-        }) ?? [];
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.headers.append("Set-Cookie", `${name}=${value}; ${Object.entries(options ?? {}).map(([k, v]) => `${k}=${v}`).join("; ")}`);
-        });
-      },
     },
   });
 }

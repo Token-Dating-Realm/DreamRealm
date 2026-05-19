@@ -11,13 +11,13 @@ interface ProjectCardProps {
   name: string;
   tagline: string;
   description: string;
-  status: "live" | "beta" | "coming_soon";
+  status: "active" | "beta" | "coming_soon";
   color?: string;
   url?: string;
 }
 
 const STATUS_CONFIG = {
-  live: { label: "Live", class: "bg-success/20 text-success" },
+  active: { label: "Active", class: "bg-success/20 text-success" },
   beta: { label: "Beta", class: "bg-warning/20 text-warning" },
   coming_soon: { label: "Coming Soon", class: "bg-primary/20 text-primary" },
 };
@@ -28,6 +28,8 @@ const COLOR_MAP: Record<string, string> = {
   blue: "from-blue-500/20 to-indigo-500/20",
   green: "from-success/20 to-emerald-600/20",
   orange: "from-warning/20 to-amber-600/20",
+  indigo: "from-indigo-500/20 to-purple-500/20",
+  red: "from-red-500/20 to-rose-600/20",
 };
 
 export default function ProjectCard({ name, tagline, description, status, color = "purple", url }: ProjectCardProps) {

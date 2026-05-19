@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../components/AuthProvider";
+import { useAuth } from "../../components/AuthProvider";
 import { updateMyProfile } from "@dreamrealm/api-client";
 import { profileModeSchema, visibilitySchema } from "@dreamrealm/types";
 import type { ProfileMode, Visibility } from "@dreamrealm/types";
@@ -217,7 +217,7 @@ export default function EditProfilePage() {
             >
               {visibilities.map((v) => (
                 <option key={v} value={v}>
-                  {v[0].toUpperCase() + v.slice(1)}
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
                 </option>
               ))}
             </select>

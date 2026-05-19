@@ -13,6 +13,10 @@ import Link from "next/link";
 import AppShell from "./components/AppShell";
 import RealmCard from "./components/RealmCard";
 import { getFeaturedRealms, SAMPLE_REALMS } from "./lib/realms";
+import { SAMPLE_POSTS } from "./lib/posts";
+import { DREAMCADIAN_PROJECTS } from "./lib/projects";
+import { POST_TYPE_LABELS, POST_TYPE_COLORS } from "./lib/posts";
+import type { PostType } from "./lib/posts";
 
 const MODULES = [
   { name: "Discover", description: "Swipe and explore profiles nearby", href: "/discover", icon: "🔍" },
@@ -86,7 +90,7 @@ function GuestLanding() {
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((realm) => (
-            <RealmCard key={realm.id} realm={realm} />
+            <RealmCard key={realm.id} realm={realm} showActions={false} />
           ))}
         </div>
       </section>
@@ -95,7 +99,7 @@ function GuestLanding() {
       <section className="mx-auto max-w-4xl px-4 py-12">
         <div className="grid gap-4 rounded-3xl border border-border bg-surface/50 p-8 sm:grid-cols-3">
           <div className="text-center">
-            <p className="text-3xl font-bold text-primary">6</p>
+            <p className="text-3xl font-bold text-primary">{SAMPLE_REALMS.length}</p>
             <p className="text-xs text-text-muted">Realms</p>
           </div>
           <div className="text-center">
@@ -105,8 +109,8 @@ function GuestLanding() {
             <p className="text-xs text-text-muted">Dreamers</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-success">1</p>
-            <p className="text-xs text-text-muted">Ecosystem</p>
+            <p className="text-3xl font-bold text-success">{DREAMCADIAN_PROJECTS.length}</p>
+            <p className="text-xs text-text-muted">Ecosystem Projects</p>
           </div>
         </div>
       </section>
@@ -129,14 +133,31 @@ function GuestLanding() {
   );
 }
 
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function AuthenticatedDashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const featured = getFeaturedRealms();
+  const suggestedRealms = SAMPLE_REALMS.filter((r) => !r.is_featured).slice(0, 3);
+  const recentPosts = SAMPLE_POSTS.slice(0, 3);
+  const activeProjects = DREAMCADIAN_PROJECTS.filter((p) => p.status === "active" || p.status === "beta").slice(0, 3);
+
+  const firstName = user?.email?.split("@")[0] ?? "Dreamer";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      {/* Welcome */}
       <div className="mb-8">
-        <h1 className="mb-1 text-2xl font-bold text-text">Welcome back, {user?.email?.split("@")[0]}</h1>
+        <h1 className="mb-1 text-2xl font-bold text-text">Welcome back, {firstName}</h1>
         <p className="text-text-muted">Your dashboard — pick a module or explore a realm.</p>
       </div>
 
@@ -159,17 +180,168 @@ function AuthenticatedDashboard() {
         ))}
       </div>
 
-      {/* Featured realms */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-text">Featured Realms</h2>
-        <Link href="/realms" className="text-xs font-semibold text-primary hover:text-accent transition">
-          Explore All →
-        </Link>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {featured.map((realm) => (
-          <RealmCard key={realm.id} realm={realm} />
-        ))}
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Left column: Realms */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Featured realms */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-text">Featured Realms</h2>
+              <Link href="/realms" className="text-xs font-semibold text-primary hover:text-accent transition">
+                Explore All →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {featured.map((realm) => (
+                <RealmCard key={realm.id} realm={realm} showActions={false} />
+              ))}
+            </div>
+          </section>
+
+          {/* Suggested realms */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-text">Suggested for You</h2>
+              <Link href="/realms" className="text-xs font-semibold text-primary hover:text-accent transition">
+                Browse →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {suggestedRealms.map((realm) => (
+                <Link
+                  key={realm.id}
+                  href={`/realms/${realm.slug}`}
+                  className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition hover:border-primary/50 hover:shadow-glow/50"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 text-sm font-bold text-white">
+                    {realm.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-text group-hover:text-primary transition-colors">{realm.name}</p>
+                    <p className="text-xs text-text-muted">{realm.category}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Recent community activity */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-text">Recent Activity</h2>
+              <Link href="/feed" className="text-xs font-semibold text-primary hover:text-accent transition">
+                View Feed →
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {recentPosts.map((post) => (
+                <div key={post.id} className="rounded-xl border border-border bg-surface p-4 transition hover:border-primary/30 hover:shadow-glow/30">
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+                      {post.authorName.charAt(0)}
+                    </div>
+                    <span className="text-sm font-semibold text-text">{post.authorName}</span>
+                    {post.type && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${POST_TYPE_COLORS[post.type as PostType]}`}>
+                        {POST_TYPE_LABELS[post.type as PostType]}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mb-2 line-clamp-2 text-sm text-text-muted">{post.content}</p>
+                  <div className="flex items-center gap-3 text-xs text-text-muted">
+                    <span>{formatTimeAgo(post.timestamp)}</span>
+                    <span>·</span>
+                    <span className="text-primary">{post.realm}</span>
+                    <span>·</span>
+                    <span>{post.likes} likes</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Right column: Shortcuts */}
+        <div className="space-y-8">
+          {/* Saved Realms Preview */}
+          <section className="rounded-2xl border border-border bg-surface p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">Saved Realms</h2>
+              <Link href="/realms" className="text-xs text-primary hover:underline">See All</Link>
+            </div>
+            <div className="space-y-3">
+              {featured.slice(0, 2).map((realm) => (
+                <Link key={realm.id} href={`/realms/${realm.slug}`} className="group flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 text-xs font-bold text-white">
+                    {realm.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text group-hover:text-primary transition">{realm.name}</p>
+                    <p className="text-xs text-text-muted">{realm.member_count.toLocaleString()} members</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <Link
+              href="/realms"
+              className="mt-4 block w-full rounded-lg border border-border py-2 text-center text-xs font-semibold text-text-muted transition hover:border-primary/50 hover:text-text"
+            >
+              Browse All Realms
+            </Link>
+          </section>
+
+          {/* Joined Realms Preview */}
+          <section className="rounded-2xl border border-border bg-surface p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">Joined Realms</h2>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">2 active</span>
+            </div>
+            <div className="space-y-3">
+              {SAMPLE_REALMS.filter((r) => r.slug === "creators-market" || r.slug === "cupids-corner").map((realm) => (
+                <Link key={realm.id} href={`/realms/${realm.slug}`} className="group flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-success/20 to-primary/20 text-xs font-bold text-white">
+                    {realm.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text group-hover:text-primary transition">{realm.name}</p>
+                    <p className="text-xs text-text-muted">{realm.category}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Dreamcadian Shortcuts */}
+          <section className="rounded-2xl border border-border bg-surface p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted">Ecosystem</h2>
+            </div>
+            <div className="space-y-3">
+              {activeProjects.map((project) => (
+                <div key={project.id} className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${
+                    project.color === "purple" ? "from-primary/20 to-primary-dark/20" :
+                    project.color === "green" ? "from-success/20 to-emerald-600/20" :
+                    project.color === "orange" ? "from-warning/20 to-amber-600/20" :
+                    "from-blue-500/20 to-indigo-500/20"
+                  } text-xs font-bold text-white`}>
+                    {project.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text">{project.name}</p>
+                    <p className="text-xs text-text-muted">{project.tagline}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link
+              href="/hub"
+              className="mt-4 block w-full rounded-lg bg-primary py-2 text-center text-xs font-semibold text-white shadow-glow transition hover:bg-primary-dark"
+            >
+              Explore Dreamcadian Hub
+            </Link>
+          </section>
+        </div>
       </div>
     </div>
   );

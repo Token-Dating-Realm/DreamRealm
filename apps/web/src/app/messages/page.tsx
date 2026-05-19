@@ -12,6 +12,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../components/AuthProvider";
+import AppShell from "../components/AppShell";
 import {
   getMyConversations,
   subscribeToConversations,

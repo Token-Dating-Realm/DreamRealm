@@ -2,8 +2,18 @@
   "extends": "../../tools/typescript-config/nextjs.json",
   "compilerOptions": {
     "outDir": "./.next",
-    "rootDir": "."
+    "rootDir": ".",
+    "noEmit": true,
+    "isolatedModules": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", ".next"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
 }

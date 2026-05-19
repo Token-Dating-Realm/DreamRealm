@@ -1,0 +1,27 @@
+# Netlify configuration for DreamRealm web app
+# Place this file in apps/web/ and set the Netlify base directory to "apps/web"
+# OR keep it here and use the build command that navigates to the monorepo root.
+
+[build]
+  # Go to monorepo root, install deps, then build this app
+  command = "cd ../.. && pnpm install && pnpm --filter @dreamrealm/web build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Skip Netlify's auto npm install since we use pnpm
+  NPM_FLAGS = "--version"
+
+# Next.js SSR and routing are handled by Netlify's Next.js Runtime.
+# Do NOT add SPA-style /* -> /index.html redirects here — they break SSR.
+
+# Optional: cache static assets
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

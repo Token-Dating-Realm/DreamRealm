@@ -108,7 +108,7 @@ export default function OnboardingPage() {
                 {i + 1}
               </span>
               <span className={STEPS.indexOf(step) >= i ? "text-text" : ""}>
-                {s[0].toUpperCase() + s.slice(1)}
+                {s.charAt(0).toUpperCase() + s.slice(1)}
               </span>
               {i < STEPS.length - 1 && (
                 <span className="mx-1 text-border">/</span>
@@ -253,7 +253,7 @@ export default function OnboardingPage() {
               >
                 {visibilities.map((v) => (
                   <option key={v} value={v}>
-                    {v[0].toUpperCase() + v.slice(1)}
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
                   </option>
                 ))}
               </select>
@@ -283,7 +283,7 @@ export default function OnboardingPage() {
             </div>
             <div className="rounded-lg bg-surface-light p-4">
               <p className="text-text-muted">Visibility</p>
-              <p>{visibility[0].toUpperCase() + visibility.slice(1)}</p>
+              <p>{visibility.charAt(0).toUpperCase() + visibility.slice(1)}</p>
             </div>
           </div>
         )}
@@ -292,7 +292,7 @@ export default function OnboardingPage() {
           <button
             onClick={() => {
               const idx = STEPS.indexOf(step);
-              if (idx > 0) setStep(STEPS[idx - 1]);
+              if (idx > 0) setStep(STEPS[idx - 1] as Step);
             }}
             disabled={STEPS.indexOf(step) === 0}
             className="rounded-lg border border-border px-4 py-2 text-sm text-text hover:bg-surface-light disabled:opacity-40"
@@ -312,7 +312,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => {
                 const idx = STEPS.indexOf(step);
-                if (idx < STEPS.length - 1) setStep(STEPS[idx + 1]);
+                if (idx < STEPS.length - 1) setStep(STEPS[idx + 1] as Step);
               }}
               disabled={!canProceed()}
               className="rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
