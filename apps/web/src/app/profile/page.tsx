@@ -9,6 +9,7 @@
 
 import { useAuth } from "../components/AuthProvider";
 import Link from "next/link";
+import AppShell from "../components/AppShell";
 
 export default function ProfilePage() {
   const { user, profile, isProfileLoading } = useAuth();
@@ -30,7 +31,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-6 py-8">
+    <AppShell>
+      <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mx-auto max-w-2xl rounded-2xl bg-surface p-8 shadow-lg border border-border">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-text">Your Profile</h1>
@@ -143,6 +145,6 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

@@ -21,6 +21,34 @@ module.exports = {
         danger: "#EF4444",
         border: "#334155",
       },
+      animation: {
+        "glow-pulse": "glowPulse 3s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
+        "fade-in": "fadeIn 0.5s ease-out forwards",
+        shimmer: "shimmer 2s linear infinite",
+      },
+      keyframes: {
+        glowPulse: {
+          "0%, 100%": { boxShadow: "0 0 20px rgba(168,85,247,0.15)" },
+          "50%": { boxShadow: "0 0 40px rgba(168,85,247,0.35)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        fadeIn: {
+          from: { opacity: "0", transform: "translateY(12px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        shimmer: {
+          from: { backgroundPosition: "-200% 0" },
+          to: { backgroundPosition: "200% 0" },
+        },
+      },
+      boxShadow: {
+        glow: "0 0 24px rgba(168,85,247,0.25)",
+        "glow-accent": "0 0 24px rgba(244,114,182,0.25)",
+      },
     },
   },
   plugins: [],

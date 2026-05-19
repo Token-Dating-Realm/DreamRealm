@@ -11,8 +11,8 @@ import { AuthProvider } from "./components/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DreamRealm",
-  description: "A dating ecosystem powered by DreamCoin.",
+  title: "DreamRealm — Enter the Digital World",
+  description: "A digital world where creators, dreamers, and connectors build communities across realms. Powered by DreamCoin.",
 };
 
 export default function RootLayout({

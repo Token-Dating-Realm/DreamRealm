@@ -13,7 +13,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/realms", "/hub", "/feed", "/"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -53,7 +53,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const isPublic = PUBLIC_PATHS.includes(pathname) || pathname === "/";
+  const isPublic = PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/realms/");
+  const isAuthPage = ["/login", "/signup", "/forgot-password", "/reset-password"].includes(pathname);
 
   if (!user && !isPublic) {
     const loginUrl = new URL("/login", request.url);
@@ -61,8 +62,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If logged in but on a public auth page, redirect to dashboard
-  if (user && PUBLIC_PATHS.includes(pathname)) {
+  // If logged in but on an auth page, redirect to dashboard
+  if (user && isAuthPage) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

@@ -13,4 +13,51 @@
   html {
     @apply bg-background text-text;
   }
+
+  body {
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(168,85,247,0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 120%, rgba(244,114,182,0.08), transparent),
+                #0F0F1A;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(26,26,46,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(51,65,85,0.5);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(168,85,247,0.4);
+  }
+
+  .text-glow-accent {
+    text-shadow: 0 0 20px rgba(244,114,182,0.4);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(#1A1A2E, #1A1A2E) padding-box,
+                linear-gradient(135deg, rgba(168,85,247,0.5), rgba(244,114,182,0.5)) border-box;
+    border: 1px solid transparent;
+  }
 }

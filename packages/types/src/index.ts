@@ -470,6 +470,30 @@ export const notificationSchema = z.object({
 export type Notification = z.infer<typeof notificationSchema>;
 
 // ---------------------------------------------------------------------------
+// Realms
+// ---------------------------------------------------------------------------
+
+export const realmStatusSchema = z.enum(["active", "beta", "archived", "private"]);
+export type RealmStatus = z.infer<typeof realmStatusSchema>;
+
+export const realmSchema = z.object({
+  id: uuidSchema,
+  slug: z.string().min(1).max(100),
+  name: z.string().min(1).max(200),
+  description: z.string().max(5000).nullable(),
+  category: z.string().max(100),
+  image_url: z.string().url().nullable(),
+  status: realmStatusSchema.default("active"),
+  member_count: z.number().int().min(0).default(0),
+  is_featured: z.boolean().default(false),
+  is_joined: z.boolean().default(false),
+  created_at: timestampSchema,
+  updated_at: timestampSchema,
+});
+
+export type Realm = z.infer<typeof realmSchema>;
+
+// ---------------------------------------------------------------------------
 // AI Agent Logs
 // ---------------------------------------------------------------------------
 
