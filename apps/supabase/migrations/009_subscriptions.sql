@@ -47,7 +47,9 @@ BEGIN
     VALUES (NEW.id, 'free');
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, auth;
+
+REVOKE ALL ON FUNCTION public.handle_new_subscription() FROM PUBLIC;
 
 CREATE TRIGGER on_user_created_subscription
     AFTER INSERT ON public.users

@@ -65,11 +65,14 @@ BEGIN
     )
     LIMIT p_limit;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, extensions, auth;
 
--- Grant usage so authenticated users can call the RPC
+-- Lock down: only authenticated users may call the RPC
+REVOKE ALL ON FUNCTION public.nearby_profiles FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.nearby_profiles TO authenticated;
-GRANT EXECUTE ON FUNCTION public.nearby_profiles TO anon;
+
+COMMENT ON FUNCTION public.nearby_profiles IS
+    'RPC: returns nearby active public profiles. SECURITY DEFINER is intentional — the WHERE clause replicates the profiles_public_read RLS policy. Spatial index idx_profiles_location is required for performance.';
 
 -- Trigger: promote mutual swipes to 'matched' on insert/update of matches
 CREATE OR REPLACE FUNCTION public.handle_mutual_match()

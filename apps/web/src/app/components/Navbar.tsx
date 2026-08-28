@@ -83,12 +83,21 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
           {user ? (
             <div className="flex items-center gap-2">
+              {/* Coin balance */}
+              <Link
+                href="/wallet"
+                className="hidden items-center gap-1 rounded-lg border border-border bg-surface-light px-2.5 py-1.5 text-xs text-text-muted transition hover:border-primary/30 sm:flex"
+              >
+                <span className="text-primary font-semibold">28.4K</span>
+                <span>🪙</span>
+              </Link>
+              {/* Level badge */}
               <Link
                 href="/profile"
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-light"
               >
-                <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                  {user.email?.charAt(0).toUpperCase() ?? "U"}
+                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white shadow-glow">
+                  47
                 </div>
                 <span className="hidden text-sm text-text-muted sm:block">
                   {user.email?.split("@")[0]}

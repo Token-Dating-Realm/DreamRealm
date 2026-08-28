@@ -73,7 +73,9 @@ BEGIN
     );
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, auth;
+
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC;
 
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users

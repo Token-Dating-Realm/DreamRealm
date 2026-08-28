@@ -86,7 +86,9 @@ BEGIN
     INSERT INTO public.wallets (user_id) VALUES (NEW.id);
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, auth;
+
+REVOKE ALL ON FUNCTION public.handle_new_wallet() FROM PUBLIC;
 
 CREATE TRIGGER on_user_created_wallet
     AFTER INSERT ON public.users

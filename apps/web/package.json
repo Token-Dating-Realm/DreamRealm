@@ -19,7 +19,8 @@
     "@dreamrealm/types": "workspace:*",
     "@dreamrealm/api-client": "workspace:*",
     "@dreamrealm/config": "workspace:*",
-    "@dreamrealm/ui": "workspace:*"
+    "@dreamrealm/ui": "workspace:*",
+    "@hcaptcha/react-hcaptcha": "^1.11.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

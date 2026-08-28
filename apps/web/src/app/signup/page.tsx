@@ -7,9 +7,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "../components/AuthProvider";
+import { HCaptchaWidget } from "../components/HCaptchaWidget";
 
 export default function SignupPage() {
   const { signUp } = useAuth();
@@ -18,6 +19,7 @@ export default function SignupPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,9 +32,27 @@ export default function SignupPage() {
       setError("Password must be at least 8 characters");
       return;
     }
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA verification");
+      return;
+    }
+
     setIsPending(true);
     try {
-      await signUp(email, password);
+      // Server-side verify CAPTCHA token before auth
+      const verifyRes = await fetch("/api/verify-turnstile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok || !verifyData.success) {
+        setError(verifyData.error || "CAPTCHA verification failed. Please try again.");
+        setCaptchaToken(null);
+        return;
+      }
+
+      await signUp(email, password, captchaToken);
       // TODO: Redirect to email verification or onboarding wizard
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed");
@@ -40,6 +60,10 @@ export default function SignupPage() {
       setIsPending(false);
     }
   };
+
+  const handleCaptchaExpire = useCallback(() => {
+    setCaptchaToken(null);
+  }, []);
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -85,10 +109,15 @@ export default function SignupPage() {
               className="mt-1 w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+          <HCaptchaWidget
+            onVerify={setCaptchaToken}
+            onExpire={handleCaptchaExpire}
+            onError={handleCaptchaExpire}
+          />
           {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !captchaToken}
             className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           >
             {isPending ? "Creating account..." : "Create Account"}

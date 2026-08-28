@@ -31,9 +31,9 @@ interface AuthContextValue {
   profile: Profile | null;
   isLoading: boolean;
   isProfileLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signInWithOAuth: (provider: "google" | "apple") => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -126,10 +126,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [client, fetchFullUser]);
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, captchaToken?: string) => {
       const { error, data } = await client.auth.signInWithPassword({
         email,
         password,
+        options: captchaToken ? { captchaToken } : undefined,
       });
       if (error) throw error;
 
@@ -164,12 +165,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, captchaToken?: string) => {
       const { error, data } = await client.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          captchaToken,
         },
       });
       if (error) throw error;

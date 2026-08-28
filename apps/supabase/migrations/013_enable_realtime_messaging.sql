@@ -16,7 +16,9 @@ BEGIN
     WHERE id = NEW.conversation_id;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, auth;
+
+REVOKE ALL ON FUNCTION public.update_conversation_last_message() FROM PUBLIC;
 
 CREATE TRIGGER on_message_inserted_update_conversation
     AFTER INSERT ON public.messages
