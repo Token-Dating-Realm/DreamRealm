@@ -249,7 +249,7 @@ export default function EditProfileScreen() {
                 <Text
                   className={`text-sm ${visibility === v ? "text-primary" : "text-text"}`}
                 >
-                  {v[0].toUpperCase() + v.slice(1)}
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}

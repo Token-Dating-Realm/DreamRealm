@@ -12,7 +12,7 @@ import type { Message } from "@dreamrealm/types";
 
 export default function ChatRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { client, user } = useAuth();
+  const { client, profile } = useAuth();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -65,7 +65,7 @@ export default function ChatRoomScreen() {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isMe = item.sender_profile_id === user?.id;
+    const isMe = item.sender_profile_id === profile?.id;
     return (
       <View className={`mb-2 ${isMe ? "items-end" : "items-start"}`}>
         <View className={`max-w-[80%] rounded-2xl px-4 py-2 ${isMe ? "bg-primary" : "bg-surface-light"}`}>
@@ -93,14 +93,20 @@ export default function ChatRoomScreen() {
         </View>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        className="flex-1 px-4 py-2"
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-text-muted">Loading messages...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          className="flex-1 px-4 py-2"
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+      )}
 
       <View className="border-t border-border bg-surface px-4 py-2">
         <View className="flex-row items-center gap-2">

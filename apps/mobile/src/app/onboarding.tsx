@@ -285,7 +285,7 @@ export default function OnboardingScreen() {
                       visibility === v ? "text-primary" : "text-text"
                     }`}
                   >
-                    {v[0].toUpperCase() + v.slice(1)}
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -309,7 +309,7 @@ export default function OnboardingScreen() {
           />
           <ReviewItem
             label="Visibility"
-            value={visibility[0].toUpperCase() + visibility.slice(1)}
+            value={visibility.charAt(0).toUpperCase() + visibility.slice(1)}
           />
         </View>
       )}
@@ -317,7 +317,8 @@ export default function OnboardingScreen() {
       <View className="mt-8 flex-row items-center justify-between">
         <TouchableOpacity
           onPress={() => {
-            if (stepIndex > 0) setStep(STEPS[stepIndex - 1]);
+            const prev = STEPS[stepIndex - 1];
+            if (prev) setStep(prev);
           }}
           disabled={stepIndex === 0}
           activeOpacity={0.8}
@@ -344,7 +345,8 @@ export default function OnboardingScreen() {
         ) : (
           <TouchableOpacity
             onPress={() => {
-              if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1]);
+              const next = STEPS[stepIndex + 1];
+              if (next) setStep(next);
             }}
             disabled={!canProceed()}
             activeOpacity={0.8}

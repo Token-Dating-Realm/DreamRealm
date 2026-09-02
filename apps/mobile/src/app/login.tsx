@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { useAuth } from "../../context/AuthProvider";
+import { useAuth } from "../context/AuthProvider";
 import { useRouter } from "expo-router";
 
 export default function LoginScreen() {

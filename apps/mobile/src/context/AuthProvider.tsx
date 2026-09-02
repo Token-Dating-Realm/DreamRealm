@@ -5,15 +5,26 @@
  * Subscribes to auth state changes for multi-tab/session sync.
  * Fetches full `public.users` row and `public.profiles` after sign-in.
  * Supports OAuth sign-in (Google, Apple).
- * TODO: Implement expo-secure-store integration for session persistence.
- * TODO: Add device fingerprinting on sign-in.
+ * Sessions persist via expo-secure-store; device fingerprint is derived from
+ * a secure-store-backed random device id (see @dreamrealm/api-client/fingerprint).
  */
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { createClient, getMyProfile } from "@dreamrealm/api-client";
-import { getDeviceFingerprint } from "@dreamrealm/api-client";
+import * as SecureStore from "expo-secure-store";
+import { createClient, getMyProfile, getDeviceFingerprint, ensureIdentityPublished } from "@dreamrealm/api-client";
 import type { User, Profile } from "@dreamrealm/types";
-import type { TypedSupabaseClient } from "@dreamrealm/api-client";
+import type { TypedSupabaseClient, FingerprintStorage } from "@dreamrealm/api-client";
+
+const secureStoreAuthAdapter = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
+
+const deviceIdStorage: FingerprintStorage = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+};
 
 interface AuthContextValue {
   client: TypedSupabaseClient;
@@ -31,7 +42,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [client] = useState<TypedSupabaseClient>(() => createClient());
+  const [client] = useState<TypedSupabaseClient>(() => createClient({ storage: secureStoreAuthAdapter }));
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const p = await getMyProfile(client);
         setProfile(p);
+        if (p) void ensureIdentityPublished(client, sessionUser.id, p.id);
       } catch {
         setProfile(null);
       } finally {
@@ -126,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
 
-      const fingerprint = await getDeviceFingerprint();
+      const fingerprint = await getDeviceFingerprint(deviceIdStorage);
       await client
         .from("users")
         .update({ device_fingerprint: fingerprint })

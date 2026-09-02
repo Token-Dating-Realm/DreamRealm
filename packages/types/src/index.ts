@@ -110,6 +110,7 @@ export const profileSchema = z.object({
   is_verified: z.boolean().default(false),
   is_active: z.boolean().default(true),
   trust_score: z.number().int().min(0).max(100).default(0),
+  public_key: z.string().nullable(),
   created_at: timestampSchema,
   updated_at: timestampSchema,
 });
@@ -230,6 +231,7 @@ export const conversationMemberSchema = z.object({
   role: z.enum(["member", "admin", "owner"]).default("member"),
   joined_at: timestampSchema,
   last_read_at: timestampSchema.nullable(),
+  wrapped_key: z.string().nullable(),
 });
 
 export type ConversationMember = z.infer<typeof conversationMemberSchema>;

@@ -7,15 +7,36 @@
  */
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { getEnv, type RequiredEnvKey } from "@dreamrealm/config";
 import type { Database } from "./database";
 
-// TODO: Replace with actual project credentials via @dreamrealm/config
-const SUPABASE_URL = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "";
-const SUPABASE_ANON_KEY = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
+/** Reads a required env key via @dreamrealm/config, softening to "" so callers can warn instead of crash. */
+function optionalEnv(key: RequiredEnvKey): string {
+  try {
+    return getEnv(key);
+  } catch {
+    return "";
+  }
+}
+
+const SUPABASE_URL = optionalEnv("NEXT_PUBLIC_SUPABASE_URL");
+const SUPABASE_ANON_KEY = optionalEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = optionalEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+/** Minimal storage contract Supabase's auth client persists sessions through. */
+export interface AuthStorageAdapter {
+  getItem: (key: string) => Promise<string | null> | string | null;
+  setItem: (key: string, value: string) => Promise<void> | void;
+  removeItem: (key: string) => Promise<void> | void;
+}
+
+export interface CreateClientOptions {
+  /** Custom session storage (e.g. an expo-secure-store adapter on native, where `localStorage` doesn't exist). */
+  storage?: AuthStorageAdapter;
+}
 
 /** Browser/mobile Supabase client with RLS context from the current JWT. */
-export function createClient() {
+export function createClient(options?: CreateClientOptions) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     // eslint-disable-next-line no-console
     console.warn("Supabase URL and Anon Key are not configured. Auth will be unavailable until environment variables are set.");
@@ -24,7 +45,8 @@ export function createClient() {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: !options?.storage,
+      ...(options?.storage ? { storage: options.storage } : {}),
     },
   });
 }
@@ -48,5 +70,6 @@ export * from "./fingerprint";
 export * from "./profile";
 export * from "./messaging";
 export * from "./matching";
+export * from "./crypto";
 export type { Database } from "./database";
 export type TypedSupabaseClient = ReturnType<typeof createClient>;

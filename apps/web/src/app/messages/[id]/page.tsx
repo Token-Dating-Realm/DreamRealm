@@ -5,7 +5,10 @@
  * via Supabase Realtime. Includes message sending, auto-scroll, and
  * basic sender differentiation (me vs others).
  *
- * TODO: Add message encryption/decryption, image uploads, reply threads.
+ * Transparently encrypts/decrypts when both this conversation and the
+ * current member have E2EE key material set up (see getConversationKeyForMember).
+ *
+ * TODO: Add image uploads, reply threads.
  */
 
 "use client";
@@ -18,47 +21,72 @@ import {
   sendMessage,
   subscribeToMessages,
   updateLastRead,
+  getConversationKeyForMember,
 } from "@dreamrealm/api-client";
 import type { Message } from "@dreamrealm/types";
 import Link from "next/link";
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { client, user } = useAuth();
+  const { client, user, profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversationKey, setConversationKey] = useState<CryptoKey | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async () => {
-    try {
-      const data = await getConversationMessages(client, id, 50);
-      setMessages(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load messages");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [client, id]);
+  const loadMessages = useCallback(
+    async (key: CryptoKey | null) => {
+      try {
+        const data = await getConversationMessages(client, id, 50, undefined, key);
+        setMessages(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load messages");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client, id]
+  );
 
-  // Initial load and realtime subscription
+  // Resolve this member's conversation key (if E2EE is set up), then load/subscribe
   useEffect(() => {
-    loadMessages();
+    if (!user || !profile) return;
+    let cancelled = false;
+
+    (async () => {
+      const key = await getConversationKeyForMember(client, id, user.id, profile.id).catch(() => null);
+      if (cancelled) return;
+      setConversationKey(key);
+      await loadMessages(key);
+    })();
+
     updateLastRead(client, id).catch(() => {});
 
-    const unsubscribe = subscribeToMessages(client, id, (newMessage) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMessage.id)) return prev;
-        return [...prev, newMessage];
-      });
-    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, id, user, profile, loadMessages]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMessages(
+      client,
+      id,
+      (newMessage) => {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      },
+      conversationKey
+    );
 
     return () => {
       unsubscribe();
     };
-  }, [client, id, loadMessages]);
+  }, [client, id, conversationKey]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -72,11 +100,16 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     setIsSending(true);
     setError(null);
     try {
-      await sendMessage(client, {
-        conversation_id: id,
-        type: "text",
-        content: input.trim(),
-      });
+      const sent = await sendMessage(
+        client,
+        {
+          conversation_id: id,
+          type: "text",
+          content: input.trim(),
+        },
+        conversationKey
+      );
+      setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
       setInput("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
@@ -85,7 +118,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const myProfileId = user?.id; // messages use profile_id as sender
+  const myProfileId = profile?.id;
 
   return (
     <AppShell>

@@ -4,8 +4,9 @@
  * Reusable swipe engine and geo discovery functions for web and mobile.
  * Accept a typed Supabase client so callers bring their own instance.
  *
- * TODO: Add AI recommendation scoring and trust-based filtering.
- * TODO: Exclude already-swiped profiles from nearby feed.
+ * Ranking is a lightweight heuristic (trust score + mutual interest overlap
+ * + verification), not a learned model — a real AI recommendation engine
+ * belongs in a later phase with its own training/eval pipeline.
  */
 
 import type { TypedSupabaseClient } from "./index";
@@ -21,6 +22,36 @@ export interface NearbyFilter {
 
 export interface MatchWithProfile extends Match {
   target_profile?: Profile | null;
+}
+
+async function getSwipedProfileIds(client: TypedSupabaseClient, myProfileId: string): Promise<Set<string>> {
+  const { data, error } = await client.from("matches").select("target_id").eq("actor_id", myProfileId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.target_id as string));
+}
+
+/** Lightweight heuristic score: trust, verification, and mutual interest overlap. */
+function scoreProfile(
+  candidate: Profile,
+  myProfile: { mode: ProfileMode; looking_for: ProfileMode[] | null }
+): number {
+  let score = candidate.trust_score ?? 0;
+  if (candidate.is_verified) score += 15;
+  if (myProfile.looking_for?.includes(candidate.mode)) score += 20;
+  if (candidate.looking_for?.includes(myProfile.mode)) score += 20;
+  return score;
+}
+
+function rankAndFilter(
+  candidates: Profile[],
+  swipedIds: Set<string>,
+  myProfile: { id: string; mode: ProfileMode; looking_for: ProfileMode[] | null },
+  limit: number
+): Profile[] {
+  return candidates
+    .filter((p) => p.id !== myProfile.id && !swipedIds.has(p.id))
+    .sort((a, b) => scoreProfile(b, myProfile) - scoreProfile(a, myProfile))
+    .slice(0, limit);
 }
 
 export async function getNearbyProfiles(
@@ -40,6 +71,7 @@ export async function getNearbyProfiles(
 
   const radius = filter.radiusKm ?? 50;
   const limit = filter.limit ?? 20;
+  const swipedIds = await getSwipedProfileIds(client, myProfile.id);
 
   // Use PostGIS ST_DWithin for geo-filtering.
   // Exclude self and inactive/flagged profiles.
@@ -48,7 +80,8 @@ export async function getNearbyProfiles(
     p_longitude: filter.longitude,
     p_radius_meters: radius * 1000,
     p_exclude_profile_id: myProfile.id,
-    p_limit: limit,
+    // Overfetch since already-swiped profiles are filtered out client-side below.
+    p_limit: limit + swipedIds.size,
   });
 
   if (error) {
@@ -65,13 +98,13 @@ export async function getNearbyProfiles(
       .lte("latitude", filter.latitude + latDelta)
       .gte("longitude", filter.longitude - lngDelta)
       .lte("longitude", filter.longitude + lngDelta)
-      .limit(limit);
+      .limit(limit + swipedIds.size);
 
     if (fallbackError) throw fallbackError;
-    return (fallback ?? []) as Profile[];
+    return rankAndFilter((fallback ?? []) as Profile[], swipedIds, myProfile, limit);
   }
 
-  return (data ?? []) as Profile[];
+  return rankAndFilter((data ?? []) as Profile[], swipedIds, myProfile, limit);
 }
 
 export async function recordSwipe(
@@ -92,7 +125,12 @@ export async function recordSwipe(
 
   const actorId = myProfile.id as string;
 
-  // Insert swipe record; RLS ensures actor_id === my profile id
+  // Insert swipe record; RLS ensures actor_id === my profile id.
+  // The `handle_mutual_match` DB trigger (see migration 014) atomically
+  // promotes this row and any reverse pending swipe to 'matched' before
+  // insert, so the returned row already reflects the final status — no
+  // separate client-side read-then-update is needed (and doing one would
+  // race the trigger).
   const { data: matchRow, error } = await client
     .from("matches")
     .insert({
@@ -106,32 +144,7 @@ export async function recordSwipe(
 
   if (error) throw error;
 
-  // Check if the target already swiped right/super on me
-  const { data: mutual } = await client
-    .from("matches")
-    .select("*")
-    .eq("actor_id", targetProfileId)
-    .eq("target_id", actorId)
-    .in("direction", ["right", "super"])
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (mutual && (direction === "right" || direction === "super")) {
-    // Update both rows to matched
-    await client
-      .from("matches")
-      .update({ status: "matched" })
-      .eq("id", matchRow.id);
-
-    await client
-      .from("matches")
-      .update({ status: "matched" })
-      .eq("id", mutual.id);
-
-    return { match: { ...matchRow, status: "matched" } as Match, isMutual: true };
-  }
-
-  return { match: matchRow as Match, isMutual: false };
+  return { match: matchRow as Match, isMutual: matchRow.status === "matched" };
 }
 
 export async function getMyMatches(
