@@ -19,8 +19,7 @@ import {
   useState,
   useCallback,
 } from "react";
-import { createClient, getMyProfile } from "@dreamrealm/api-client";
-import { getDeviceFingerprint } from "@dreamrealm/api-client";
+import { createClient, getMyProfile, getDeviceFingerprint, ensureIdentityPublished } from "@dreamrealm/api-client";
 import type { User, Profile } from "@dreamrealm/types";
 import type { TypedSupabaseClient } from "@dreamrealm/api-client";
 import { useRouter } from "next/navigation";
@@ -79,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const p = await getMyProfile(client);
         setProfile(p);
+        if (p) void ensureIdentityPublished(client, sessionUser.id, p.id);
       } catch {
         setProfile(null);
       } finally {
@@ -135,9 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       const fingerprint = await getDeviceFingerprint();
-      await (client.from("users") as any)
-        .update({ device_fingerprint: fingerprint })
-        .eq("id", data.user.id);
+      await client.from("users").update({ device_fingerprint: fingerprint }).eq("id", data.user.id);
 
       await fetchFullUser(data.user as { id: string; email?: string | null; created_at: string });
 

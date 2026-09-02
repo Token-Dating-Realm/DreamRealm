@@ -96,8 +96,8 @@ BEGIN
     LIMIT 1;
 
     IF FOUND THEN
-        -- Promote both rows to matched
-        UPDATE public.matches SET status = 'matched', updated_at = now() WHERE id = reverse_row.id;
+        -- Promote both rows to matched (public.matches has no updated_at column)
+        UPDATE public.matches SET status = 'matched' WHERE id = reverse_row.id;
         NEW.status := 'matched';
     END IF;
 

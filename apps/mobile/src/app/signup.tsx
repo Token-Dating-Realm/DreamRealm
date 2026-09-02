@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { useAuth } from "../../context/AuthProvider";
+import { useAuth } from "../context/AuthProvider";
 
 export default function SignupScreen() {
   const { signUp } = useAuth();

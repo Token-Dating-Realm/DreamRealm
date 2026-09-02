@@ -15,6 +15,8 @@
  *   010 - Trust & Moderation (Phase 6 ready)
  *   011 - Notifications
  *   012 - AI Agent Logs
+ *   ...
+ *   023 - E2E key exchange (profile public keys + wrapped conversation keys)
  *
  * Run via Supabase CLI:
  *   supabase migration up

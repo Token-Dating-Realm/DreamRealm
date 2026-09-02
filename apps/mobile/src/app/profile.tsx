@@ -6,7 +6,7 @@
  */
 
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import { useAuth } from "../../context/AuthProvider";
+import { useAuth } from "../context/AuthProvider";
 import { useRouter } from "expo-router";
 
 export default function ProfileScreen() {
@@ -76,7 +76,7 @@ export default function ProfileScreen() {
               <View>
                 <Text className="text-xs text-text-muted">Looking for</Text>
                 <View className="mt-2 flex-row flex-wrap gap-2">
-                  {profile.looking_for.map((m) => (
+                  {profile.looking_for.map((m: string) => (
                     <Text
                       key={m}
                       className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary"

@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
-    "@dreamrealm/types": "workspace:*"
+    "@dreamrealm/types": "workspace:*",
+    "@dreamrealm/config": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
