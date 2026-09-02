@@ -8,6 +8,7 @@ out/
 dist/
 build/
 *.tsbuildinfo
+.turbo/
 
 # Expo
 .expo/
@@ -46,3 +47,4 @@ coverage/
 
 # Avoid nested repo artifact
 DreamRealm/
+.turbo/
