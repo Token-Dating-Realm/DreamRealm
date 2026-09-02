@@ -85,7 +85,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
             <div className="flex items-center gap-2">
               {/* Coin balance */}
               <Link
-                href="/wallet"
+                href="/profile"
                 className="hidden items-center gap-1 rounded-lg border border-border bg-surface-light px-2.5 py-1.5 text-xs text-text-muted transition hover:border-primary/30 sm:flex"
               >
                 <span className="text-primary font-semibold">28.4K</span>
