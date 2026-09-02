@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           device_fingerprint: null,
           geo_region: null,
           trust_bucket: "new",
+          is_active: true,
         });
         return;
       }

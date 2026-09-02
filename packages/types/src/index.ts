@@ -50,6 +50,7 @@ export const userSchema = z.object({
   device_fingerprint: z.string().nullable(),
   geo_region: z.string().nullable(),
   trust_bucket: z.enum(["new", "verified", "trusted", "vip", "flagged"]).default("new"),
+  is_active: z.boolean().default(true),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -110,6 +111,7 @@ export const profileSchema = z.object({
   is_verified: z.boolean().default(false),
   is_active: z.boolean().default(true),
   trust_score: z.number().int().min(0).max(100).default(0),
+  preferences: z.record(z.unknown()).default({}),
   created_at: timestampSchema,
   updated_at: timestampSchema,
 });

@@ -1,13 +1,14 @@
 /**
- * Profile Page — Phase 4.1 Enhanced
+ * Profile Page
  *
- * Tabbed layout: Overview, Activity, Achievements, Skills, Guilds, Inventory, Stats.
- * Gamification data: XP bar, achievements, skills, guilds, inventory, friends.
+ * Tabbed layout: Overview, Achievements, Skills, Guilds, Inventory, Stats.
+ * All data is fetched for the authenticated user (profile + user_stats +
+ * achievements + skills + guilds + inventory + friendships).
  */
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../components/AuthProvider";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
@@ -16,41 +17,89 @@ import XPBar from "../components/XPBar";
 import AchievementBadge from "../components/AchievementBadge";
 import SkillTreeNode from "../components/SkillTreeNode";
 import GuildCard from "../components/GuildCard";
-import { SAMPLE_USERS } from "../lib/users";
-import type { SampleUser } from "../lib/users";
+import {
+  getUserStats,
+  getUserAchievements,
+  getUserSkills,
+  getUserGuilds,
+  getUserInventory,
+  getMyFriends,
+  type UserStats,
+  type UserAchievementWithDetails,
+  type UserSkillWithDetails,
+  type GuildMembershipWithGuild,
+  type UserInventoryWithItem,
+} from "@dreamrealm/api-client";
+import type { Profile } from "@dreamrealm/types";
 
 const TABS = ["Overview", "Achievements", "Skills", "Guilds", "Inventory", "Stats"];
 
-const MOOD_LABELS: Record<string, string> = {
-  adventurous: "🗡️ Adventurous",
-  chill: "🍃 Chill",
-  creative: "🎨 Creative",
-  flirty: "💋 Flirty",
-  focused: "🎯 Focused",
-  mysterious: "🌙 Mysterious",
-  playful: "🎮 Playful",
-  romantic: "🌹 Romantic",
-  social: "🗣️ Social",
-  tired: "😴 Tired",
-};
-
-const STATUS_DOT: Record<string, string> = {
-  online: "bg-emerald-400",
-  away: "bg-amber-400",
-  busy: "bg-rose-400",
-  invisible: "bg-slate-500",
-  streaming: "bg-purple-400",
-  in_realm: "bg-cyan-400",
-};
+interface FriendSummary {
+  userId: string;
+  profileId: string;
+  displayName: string;
+}
 
 export default function ProfilePage() {
-  const { user, isProfileLoading } = useAuth();
+  const { client, user, profile, isProfileLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("Overview");
 
-  // Use first sample user as preview data
-  const u: SampleUser = SAMPLE_USERS[0]!;
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [achievements, setAchievements] = useState<UserAchievementWithDetails[]>([]);
+  const [skills, setSkills] = useState<UserSkillWithDetails[]>([]);
+  const [guilds, setGuilds] = useState<GuildMembershipWithGuild[]>([]);
+  const [inventory, setInventory] = useState<UserInventoryWithItem[]>([]);
+  const [friends, setFriends] = useState<FriendSummary[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  if (isProfileLoading) {
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [st, ach, sk, gl, inv, friendships] = await Promise.all([
+          getUserStats(client, user.id),
+          getUserAchievements(client, user.id),
+          getUserSkills(client, user.id),
+          getUserGuilds(client, user.id),
+          getUserInventory(client, user.id),
+          getMyFriends(client),
+        ]);
+        if (cancelled) return;
+        setStats(st);
+        setAchievements(ach);
+        setSkills(sk);
+        setGuilds(gl);
+        setInventory(inv);
+
+        const otherIds = friendships.map((f) => (f.requester_id === user.id ? f.addressee_id : f.requester_id));
+        if (otherIds.length > 0) {
+          const { data: friendProfiles } = await client
+            .from("profiles")
+            .select("id, user_id, display_name")
+            .in("user_id", otherIds);
+          if (!cancelled) {
+            setFriends(
+              ((friendProfiles ?? []) as unknown as { id: string; user_id: string; display_name: string }[]).map((p) => ({
+                userId: p.user_id,
+                profileId: p.id,
+                displayName: p.display_name,
+              }))
+            );
+          }
+        } else if (!cancelled) {
+          setFriends([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingData(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, user]);
+
+  if (isProfileLoading || (user && isLoadingData)) {
     return (
       <AppShell>
         <main className="flex min-h-screen items-center justify-center">
@@ -70,61 +119,58 @@ export default function ProfilePage() {
     );
   }
 
+  if (!profile) {
+    return (
+      <AppShell>
+        <main className="flex min-h-screen flex-col items-center justify-center gap-3">
+          <p className="text-text-muted">You haven&apos;t finished setting up your profile yet.</p>
+          <Link href="/onboarding" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-glow hover:bg-primary-dark transition">
+            Complete Onboarding
+          </Link>
+        </main>
+      </AppShell>
+    );
+  }
+
+  const level = stats?.level ?? 1;
+  const totalXp = stats?.total_xp ?? 0;
+  const xpToNextLevel = stats?.xp_to_next_level ?? 100;
+  const reputationScore = stats?.reputation_score ?? 0;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-5xl px-4 py-8">
         {/* ===== HERO ===== */}
         <div className="mb-6 overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/5 via-surface to-accent/5 p-6 sm:p-8">
           <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-            {/* Avatar with frame */}
+            {/* Avatar */}
             <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-3xl font-bold text-white shadow-glow">
-              {u.displayName.charAt(0)}
-              {u.inventory.find((i) => i.type === "avatar_frame" && i.equipped) && (
-                <div className="absolute -inset-1.5 rounded-full border-2 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.3)]" />
-              )}
+              {profile.display_name.charAt(0)}
             </div>
 
             <div className="flex-1 text-center sm:text-left">
               {/* Name row */}
               <div className="mb-1 flex items-center justify-center gap-2 sm:justify-start">
-                <h1 className="text-2xl font-bold text-text">{u.displayName}</h1>
-                {u.verified && (
+                <h1 className="text-2xl font-bold text-text">{profile.display_name}</h1>
+                {profile.is_verified && (
                   <svg className="h-5 w-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 )}
               </div>
 
-              {/* Meta row: role, mood, status */}
+              {/* Meta row */}
               <div className="mb-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                  {u.role.replace("_", " ")}
+                  {profile.mode.replace(/_/g, " ")}
                 </span>
-                <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface-light px-2.5 py-0.5 text-[10px] text-text-muted">
-                  <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[u.presenceStatus] ?? STATUS_DOT.online}`} />
-                  {MOOD_LABELS[u.mood] ?? u.mood}
-                </span>
-                {u.statusMessage && (
-                  <span className="text-[11px] text-text-muted italic">&ldquo;{u.statusMessage}&rdquo;</span>
-                )}
               </div>
 
-              <p className="max-w-lg text-sm leading-relaxed text-text-muted">{u.bio}</p>
-
-              {/* Interests */}
-              {u.interests.length > 0 && (
-                <div className="mt-3 flex flex-wrap justify-center gap-1.5 sm:justify-start">
-                  {u.interests.map((interest) => (
-                    <span key={interest} className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] text-primary">
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {profile.bio && <p className="max-w-lg text-sm leading-relaxed text-text-muted">{profile.bio}</p>}
 
               {/* XP Bar */}
               <div className="mt-4 max-w-md">
-                <XPBar level={u.level} currentXp={u.xpToNextLevel - 50} xpToNextLevel={u.xpToNextLevel} size="sm" />
+                <XPBar level={level} currentXp={totalXp % Math.max(xpToNextLevel, 1)} xpToNextLevel={xpToNextLevel} size="sm" />
               </div>
             </div>
 
@@ -136,20 +182,16 @@ export default function ProfilePage() {
               >
                 Edit Profile
               </Link>
-              <div className="flex items-center justify-center gap-1 rounded-lg border border-border bg-surface-light px-3 py-1.5 text-xs text-text-muted">
-                <span className="text-primary font-semibold">{u.coins.toLocaleString()}</span>
-                <span>🪙</span>
-              </div>
             </div>
           </div>
         </div>
 
         {/* ===== QUICK STATS ===== */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Level" value={`${u.level}`} accent="text-primary" />
-          <StatCard label="Reputation" value={u.reputationScore.toLocaleString()} accent="text-accent" />
-          <StatCard label="Achievements" value={`${u.achievements.length}`} accent="text-amber-300" />
-          <StatCard label="Realms" value={`${u.joinedRealms.length}`} accent="text-cyan-300" />
+          <StatCard label="Level" value={`${level}`} accent="text-primary" />
+          <StatCard label="Reputation" value={reputationScore.toLocaleString()} accent="text-accent" />
+          <StatCard label="Achievements" value={`${achievements.length}`} accent="text-amber-300" />
+          <StatCard label="Friends" value={`${friends.length}`} accent="text-cyan-300" />
         </div>
 
         {/* ===== TABS ===== */}
@@ -158,19 +200,33 @@ export default function ProfilePage() {
         </div>
 
         {/* ===== TAB CONTENT ===== */}
-        {activeTab === "Overview" && <OverviewTab user={u} />}
-        {activeTab === "Achievements" && <AchievementsTab user={u} />}
-        {activeTab === "Skills" && <SkillsTab user={u} />}
-        {activeTab === "Guilds" && <GuildsTab user={u} />}
-        {activeTab === "Inventory" && <InventoryTab user={u} />}
-        {activeTab === "Stats" && <StatsTab user={u} />}
+        {activeTab === "Overview" && (
+          <OverviewTab
+            profile={profile}
+            userEmail={user.email}
+            achievements={achievements}
+            guilds={guilds}
+            friends={friends}
+          />
+        )}
+        {activeTab === "Achievements" && <AchievementsTab achievements={achievements} />}
+        {activeTab === "Skills" && <SkillsTab skills={skills} />}
+        {activeTab === "Guilds" && <GuildsTab guilds={guilds} />}
+        {activeTab === "Inventory" && <InventoryTab inventory={inventory} />}
+        {activeTab === "Stats" && (
+          <StatsTab
+            stats={stats}
+            achievementsCount={achievements.length}
+            skillsMaxed={skills.filter((s) => s.current_level >= s.skill.max_level).length}
+            guildsCount={guilds.length}
+            friendsCount={friends.length}
+          />
+        )}
       </div>
     </AppShell>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Helper: Stat Card                                                    */
 /* ------------------------------------------------------------------ */
 function StatCard({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
@@ -182,27 +238,34 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Overview                                                        */
-/* ------------------------------------------------------------------ */
-function OverviewTab({ user }: { user: SampleUser }) {
+function OverviewTab({
+  profile,
+  userEmail,
+  achievements,
+  guilds,
+  friends,
+}: {
+  profile: Profile;
+  userEmail: string;
+  achievements: UserAchievementWithDetails[];
+  guilds: GuildMembershipWithGuild[];
+  friends: FriendSummary[];
+}) {
   return (
     <div className="space-y-6">
       {/* Friends */}
       <section>
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-muted">Friends ({user.friends.length})</h3>
-        {user.friends.length > 0 ? (
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-muted">Friends ({friends.length})</h3>
+        {friends.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {user.friends.map((friendId) => {
-              const friend = SAMPLE_USERS.find((u) => u.username === friendId);
-              return friend ? (
-                <Link key={friendId} href={`/users/${friend.username}`} className="group flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 transition hover:border-primary/40">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
-                    {friend.displayName.charAt(0)}
-                  </div>
-                  <span className="text-xs text-text group-hover:text-primary transition">{friend.displayName}</span>
-                </Link>
-              ) : null;
-            })}
+            {friends.map((friend) => (
+              <Link key={friend.userId} href={`/users/${friend.profileId}`} className="group flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 transition hover:border-primary/40">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+                  {friend.displayName.charAt(0)}
+                </div>
+                <span className="text-xs text-text group-hover:text-primary transition">{friend.displayName}</span>
+              </Link>
+            ))}
           </div>
         ) : (
           <p className="text-sm text-text-muted">No friends yet. Start connecting!</p>
@@ -210,24 +273,24 @@ function OverviewTab({ user }: { user: SampleUser }) {
       </section>
 
       {/* Guilds preview */}
-      {user.guilds.length > 0 && (
+      {guilds.length > 0 && (
         <section>
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-muted">Guilds</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {user.guilds.map((g) => (
-              <GuildCard key={g.name} name={g.name} role={g.role} memberCount={g.memberCount} />
+            {guilds.map((g) => (
+              <GuildCard key={g.id} name={g.guild.name} role={g.role} memberCount={g.guild.member_count} />
             ))}
           </div>
         </section>
       )}
 
       {/* Recent achievements */}
-      {user.achievements.length > 0 && (
+      {achievements.length > 0 && (
         <section>
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-muted">Latest Achievements</h3>
           <div className="flex flex-wrap gap-2">
-            {user.achievements.slice(0, 4).map((a) => (
-              <AchievementBadge key={a} name={a} rarity={a === "Legendary Dreamer" ? "legendary" : "common"} compact />
+            {achievements.slice(0, 4).map((a) => (
+              <AchievementBadge key={a.id} name={a.achievement.name} rarity={a.achievement.rarity} compact />
             ))}
           </div>
         </section>
@@ -237,10 +300,10 @@ function OverviewTab({ user }: { user: SampleUser }) {
       <section className="rounded-2xl border border-border bg-surface p-5">
         <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-text-muted">Account</h3>
         <div className="grid gap-2 text-sm">
-          <div className="flex justify-between"><span className="text-text-muted">Email</span><span className="text-text">founder@dreamrealm.app</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Role</span><span className="text-text capitalize">{user.role.replace("_", " ")}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Trust Score</span><span className="text-text">{user.trustScore}</span></div>
-          <div className="flex justify-between"><span className="text-text-muted">Profile Theme</span><span className="text-text">{user.profileTheme}</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Email</span><span className="text-text">{userEmail}</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Mode</span><span className="text-text capitalize">{profile.mode.replace(/_/g, " ")}</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Trust Score</span><span className="text-text">{profile.trust_score}</span></div>
+          <div className="flex justify-between"><span className="text-text-muted">Visibility</span><span className="text-text capitalize">{profile.visibility}</span></div>
         </div>
       </section>
     </div>
@@ -248,96 +311,72 @@ function OverviewTab({ user }: { user: SampleUser }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Achievements                                                    */
-/* ------------------------------------------------------------------ */
-function AchievementsTab({ user }: { user: SampleUser }) {
-  const rarityMap: Record<string, string> = {
-    "First Steps": "common",
-    "Social Butterfly": "common",
-    "Realm Explorer": "common",
-    "Night Owl": "common",
-    "Matchmaker": "uncommon",
-    "Content Creator": "uncommon",
-    "Guild Founder": "rare",
-    "Market Mogul": "rare",
-    "Mystery Seeker": "epic",
-    "Legendary Dreamer": "legendary",
-  };
-
+function AchievementsTab({ achievements }: { achievements: UserAchievementWithDetails[] }) {
   return (
     <div>
-      <h3 className="mb-1 text-lg font-bold text-text">{user.achievements.length} Unlocked</h3>
+      <h3 className="mb-1 text-lg font-bold text-text">{achievements.length} Unlocked</h3>
       <p className="mb-5 text-sm text-text-muted">Complete challenges across the DreamRealm to earn badges, XP, and DreamCoin.</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {user.achievements.map((a) => (
-          <AchievementBadge key={a} name={a} rarity={rarityMap[a] ?? "common"} />
-        ))}
-        {/* Placeholder locked achievements */}
-        {["Market Mogul", "Mystery Seeker"].filter((a) => !user.achievements.includes(a)).map((a) => (
-          <AchievementBadge key={a} name={a} rarity={rarityMap[a] ?? "common"} unlocked={false} />
-        ))}
-      </div>
+      {achievements.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {achievements.map((a) => (
+            <AchievementBadge key={a.id} name={a.achievement.name} rarity={a.achievement.rarity} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">No achievements unlocked yet. Get out there and start dreaming!</p>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Skills                                                          */
-/* ------------------------------------------------------------------ */
-function SkillsTab({ user }: { user: SampleUser }) {
-  const catMap: Record<string, string> = {
-    "Social Charm": "social",
-    "Leadership Presence": "leadership",
-    "Creative Vision": "creativity",
-    "Market Wisdom": "trader",
-    "Stealth Profile": "stealth",
-    "Magic Streamer": "magic",
-    "Combat Banter": "combat",
-    "Crafting Artisan": "crafting",
-  };
-
+function SkillsTab({ skills }: { skills: UserSkillWithDetails[] }) {
   return (
     <div>
       <h3 className="mb-1 text-lg font-bold text-text">Skill Trees</h3>
       <p className="mb-5 text-sm text-text-muted">Level up your abilities by participating in the DreamRealm ecosystem.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {user.skills.map((s) => (
-          <SkillTreeNode
-            key={s.name}
-            name={s.name}
-            level={s.level}
-            maxLevel={s.maxLevel}
-            currentXp={s.xp}
-            xpPerLevel={100}
-            category={catMap[s.name] ?? "social"}
-          />
-        ))}
-      </div>
+      {skills.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {skills.map((s) => (
+            <SkillTreeNode
+              key={s.id}
+              name={s.skill.name}
+              level={s.current_level}
+              maxLevel={s.skill.max_level}
+              currentXp={s.current_xp}
+              xpPerLevel={s.skill.xp_per_level}
+              category={s.skill.category}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">No skills leveled yet.</p>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Guilds                                                          */
-/* ------------------------------------------------------------------ */
-function GuildsTab({ user }: { user: SampleUser }) {
+function GuildsTab({ guilds }: { guilds: GuildMembershipWithGuild[] }) {
   return (
     <div>
       <h3 className="mb-1 text-lg font-bold text-text">Guilds</h3>
       <p className="mb-5 text-sm text-text-muted">Join forces with other dreamers. Guilds unlock exclusive realms, events, and rewards.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {user.guilds.map((g) => (
-          <GuildCard key={g.name} name={g.name} role={g.role} memberCount={g.memberCount} description="Active guild in the Dreamcadian ecosystem." />
-        ))}
-      </div>
+      {guilds.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {guilds.map((g) => (
+            <GuildCard key={g.id} name={g.guild.name} role={g.role} memberCount={g.guild.member_count} description={g.guild.description ?? undefined} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">Not in any guilds yet.</p>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Inventory                                                       */
-/* ------------------------------------------------------------------ */
-function InventoryTab({ user }: { user: SampleUser }) {
+function InventoryTab({ inventory }: { inventory: UserInventoryWithItem[] }) {
   const rarityStyles: Record<string, string> = {
     legendary: "border-amber-500/30 bg-amber-500/10",
     epic:      "border-purple-500/30 bg-purple-500/10",
@@ -350,43 +389,59 @@ function InventoryTab({ user }: { user: SampleUser }) {
     <div>
       <h3 className="mb-1 text-lg font-bold text-text">Inventory</h3>
       <p className="mb-5 text-sm text-text-muted">Items, badges, cosmetics, and tools you have acquired.</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {user.inventory.map((item) => (
-          <div key={item.name} className={`relative rounded-2xl border p-4 ${rarityStyles[item.rarity] ?? rarityStyles.common}`}>
-            {item.equipped && (
-              <span className="absolute right-3 top-3 rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary">EQUIPPED</span>
-            )}
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-lg">
-                {item.type === "badge" ? "🏅" : item.type === "avatar_frame" ? "🖼️" : item.type === "tool" ? "🔨" : item.type === "title" ? "📜" : "🎁"}
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-text">{item.name}</h4>
-                <p className="text-[10px] text-text-muted capitalize">{item.type} · {item.rarity}</p>
+      {inventory.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {inventory.map((entry) => (
+            <div key={entry.id} className={`relative rounded-2xl border p-4 ${rarityStyles[entry.item.rarity] ?? rarityStyles.common}`}>
+              {entry.is_equipped && (
+                <span className="absolute right-3 top-3 rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary">EQUIPPED</span>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-lg">
+                  {entry.item.type === "badge" ? "🏅" : entry.item.type === "avatar_frame" ? "🖼️" : entry.item.type === "tool" ? "🔨" : entry.item.type === "title" ? "📜" : "🎁"}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-text">{entry.item.name}</h4>
+                  <p className="text-[10px] text-text-muted capitalize">{entry.item.type} · {entry.item.rarity}{entry.quantity > 1 ? ` · x${entry.quantity}` : ""}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">No items yet.</p>
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab: Stats                                                           */
-/* ------------------------------------------------------------------ */
-function StatsTab({ user }: { user: SampleUser }) {
-  const stats = [
-    { label: "Total XP", value: user.totalXp.toLocaleString() },
-    { label: "Level", value: `${user.level}` },
-    { label: "Reputation", value: user.reputationScore.toLocaleString() },
-    { label: "Achievements", value: `${user.achievements.length}` },
-    { label: "Skills Maxed", value: `${user.skills.filter((s) => s.level === s.maxLevel).length}` },
-    { label: "Realms Joined", value: `${user.joinedRealms.length}` },
-    { label: "Realms Saved", value: `${user.savedRealms.length}` },
-    { label: "Guilds", value: `${user.guilds.length}` },
-    { label: "Friends", value: `${user.friends.length}` },
-    { label: "DreamCoin Balance", value: `${user.coins.toLocaleString()} 🪙` },
+function StatsTab({
+  stats,
+  achievementsCount,
+  skillsMaxed,
+  guildsCount,
+  friendsCount,
+}: {
+  stats: UserStats | null;
+  achievementsCount: number;
+  skillsMaxed: number;
+  guildsCount: number;
+  friendsCount: number;
+}) {
+  const rows = [
+    { label: "Total XP", value: (stats?.total_xp ?? 0).toLocaleString() },
+    { label: "Level", value: `${stats?.level ?? 1}` },
+    { label: "Reputation", value: (stats?.reputation_score ?? 0).toLocaleString() },
+    { label: "Achievements", value: `${achievementsCount}` },
+    { label: "Skills Maxed", value: `${skillsMaxed}` },
+    { label: "Realms Created", value: `${stats?.realms_created ?? 0}` },
+    { label: "Streams Hosted", value: `${stats?.streams_hosted ?? 0}` },
+    { label: "Messages Sent", value: `${stats?.messages_sent ?? 0}` },
+    { label: "Matches Made", value: `${stats?.matches_made ?? 0}` },
+    { label: "Guilds", value: `${guildsCount}` },
+    { label: "Friends", value: `${friendsCount}` },
+    { label: "Coins Earned", value: `${(stats?.total_coins_earned ?? 0).toLocaleString()} 🪙` },
   ];
 
   return (
@@ -394,7 +449,7 @@ function StatsTab({ user }: { user: SampleUser }) {
       <h3 className="mb-1 text-lg font-bold text-text">Statistics</h3>
       <p className="mb-5 text-sm text-text-muted">Your journey through the DreamRealm, by the numbers.</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {stats.map((s) => (
+        {rows.map((s) => (
           <div key={s.label} className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3">
             <span className="text-sm text-text-muted">{s.label}</span>
             <span className="text-sm font-semibold text-text">{s.value}</span>

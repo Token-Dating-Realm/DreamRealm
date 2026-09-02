@@ -155,7 +155,8 @@ export interface Database {
       };
       realms: {
         Row: Realm;
-        Insert: Omit<Realm, "id" | "created_at" | "member_count"> & Partial<Pick<Realm, "id" | "created_at" | "member_count">>;
+        Insert: Omit<Realm, "id" | "created_at" | "updated_at" | "member_count"> &
+          Partial<Pick<Realm, "id" | "created_at" | "updated_at" | "member_count">>;
         Update: Partial<Omit<Realm, "id">>;
       };
       realm_members: {
@@ -343,10 +344,14 @@ export interface Realm {
   slug: string;
   name: string;
   description: string | null;
-  icon: string | null;
+  category: string;
+  image_url: string | null;
+  status: string;
   member_count: number;
+  is_featured: boolean;
   created_by: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface RealmMember {

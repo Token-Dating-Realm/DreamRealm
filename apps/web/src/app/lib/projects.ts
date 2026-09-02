@@ -1,7 +1,9 @@
 /**
  * Dreamcadian ecosystem project data.
  *
- * Static project definitions for Phase 3 frontend previews.
+ * Intentional static content: this is a hand-curated showcase of the
+ * Dreamcadian ecosystem's sibling projects, not backed by a database
+ * table. No API replacement is planned — this is off-scope by design.
  */
 
 export type ProjectStatus = "active" | "beta" | "coming_soon";
