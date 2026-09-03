@@ -1,8 +1,9 @@
 /**
- * Community feed post sample data and helpers.
+ * Community feed post data and helpers.
  *
- * Static post definitions for Phase 3 frontend previews.
- * Will be replaced by API calls once the backend feed endpoints are built.
+ * Intentional static content: the feed is curated showcase content for the
+ * DreamRealm community, not backed by a database table. No API replacement
+ * is planned — this is off-scope by design.
  */
 
 export type PostType = "announcement" | "discussion" | "creator_update" | "event" | "marketplace";

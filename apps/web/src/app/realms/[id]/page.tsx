@@ -1,30 +1,99 @@
 /**
  * Realm Detail Page
  *
- * Shows a single realm's full description, status, member count,
- * and a Join button (placeholder action). Links back to realms list.
+ * Shows a single realm's full description, status, member count, and a
+ * real Join/Leave button backed by the `realms` / `realm_members` tables
+ * (023_realms.sql). Links back to realms list.
  */
 
 "use client";
 
+import { useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import AppShell from "../../components/AppShell";
-import { getRealmBySlug } from "../../lib/realms";
+import { useAuth } from "../../components/AuthProvider";
+import { getRealmBySlug, getMyRealmMemberships, joinRealm, leaveRealm } from "@dreamrealm/api-client";
+import type { Realm } from "@dreamrealm/api-client";
+
+const STATUS_BADGE: Record<string, string> = {
+  active: "bg-success/20 text-success",
+  beta: "bg-warning/20 text-warning",
+  archived: "bg-text-muted/20 text-text-muted",
+  private: "bg-danger/20 text-danger",
+};
 
 export default function RealmDetailPage({ params }: { params: { id: string } }) {
-  const realm = getRealmBySlug(params.id);
+  const { client, user } = useAuth();
+  const [realm, setRealm] = useState<Realm | null>(null);
+  const [isJoined, setIsJoined] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFoundFlag, setNotFoundFlag] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
-  if (!realm) {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getRealmBySlug(client, params.id);
+        if (cancelled) return;
+        if (!data) {
+          setNotFoundFlag(true);
+        } else {
+          setRealm(data);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, params.id]);
+
+  useEffect(() => {
+    if (!user || !realm) return;
+    let cancelled = false;
+    (async () => {
+      const memberships = await getMyRealmMemberships(client).catch(() => []);
+      if (!cancelled) setIsJoined(memberships.some((m) => m.realm_id === realm.id));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, user, realm]);
+
+  const handleToggleJoin = async () => {
+    if (!user || !realm) return;
+    setIsJoining(true);
+    try {
+      if (isJoined) {
+        await leaveRealm(client, realm.id);
+        setIsJoined(false);
+        setRealm((r) => (r ? { ...r, member_count: Math.max(r.member_count - 1, 0) } : r));
+      } else {
+        await joinRealm(client, realm.id);
+        setIsJoined(true);
+        setRealm((r) => (r ? { ...r, member_count: r.member_count + 1 } : r));
+      }
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  if (notFoundFlag) {
     notFound();
   }
 
-  const STATUS_BADGE: Record<string, string> = {
-    active: "bg-success/20 text-success",
-    beta: "bg-warning/20 text-warning",
-    archived: "bg-text-muted/20 text-text-muted",
-    private: "bg-danger/20 text-danger",
-  };
+  if (isLoading || !realm) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <p className="text-text-muted">Loading realm...</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -46,7 +115,7 @@ export default function RealmDetailPage({ params }: { params: { id: string } }) 
                 <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                   {realm.category}
                 </span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[realm.status]}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE[realm.status] ?? "bg-text-muted/20 text-text-muted"}`}>
                   {realm.status}
                 </span>
                 {realm.is_featured && (
@@ -92,9 +161,26 @@ export default function RealmDetailPage({ params }: { params: { id: string } }) 
             with fellow dreamers in this realm.
           </p>
           <div className="flex gap-3">
-            <button className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:bg-primary-dark transition">
-              Join Realm
-            </button>
+            {user ? (
+              <button
+                onClick={handleToggleJoin}
+                disabled={isJoining}
+                className={`rounded-xl px-6 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                  isJoined
+                    ? "border border-success/50 bg-success/10 text-success hover:bg-success/20"
+                    : "bg-primary text-white shadow-glow hover:bg-primary-dark"
+                }`}
+              >
+                {isJoining ? "..." : isJoined ? "Joined" : "Join Realm"}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:bg-primary-dark transition"
+              >
+                Sign In to Join
+              </Link>
+            )}
             <Link
               href="/realms"
               className="rounded-xl border border-border px-6 py-2.5 text-sm text-text hover:bg-surface-light transition"

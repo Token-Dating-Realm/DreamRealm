@@ -24,7 +24,7 @@ import Link from "next/link";
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const { client, user } = useAuth();
+  const { client, profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -85,7 +85,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const myProfileId = user?.id; // messages use profile_id as sender
+  const myProfileId = profile?.id; // messages.sender_profile_id references profiles.id
 
   return (
     <AppShell>

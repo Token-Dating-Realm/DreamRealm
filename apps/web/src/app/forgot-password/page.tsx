@@ -9,19 +9,30 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { createClient } from "@dreamrealm/api-client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsPending(true);
-    // Placeholder: simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setSubmitted(true);
-    setIsPending(false);
+    setError(null);
+    try {
+      const client = createClient();
+      const { error: resetError } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetError) throw resetError;
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send reset link");
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -71,6 +82,7 @@ export default function ForgotPasswordPage() {
             >
               {isPending ? "Sending..." : "Send Reset Link"}
             </button>
+            {error && <p className="text-center text-sm text-danger">{error}</p>}
             <p className="text-center text-sm text-text-muted">
               Remember your password?{" "}
               <Link href="/login" className="font-semibold text-primary hover:underline">

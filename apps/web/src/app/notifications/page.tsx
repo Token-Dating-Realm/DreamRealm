@@ -1,60 +1,112 @@
 /**
  * Notifications Page
  *
- * Placeholder list of notification items. Styled like the Messages list
- * for visual consistency.
+ * Real notifications for the current user, backed by the `notifications`
+ * table (011_notifications.sql).
  */
 
 "use client";
 
+import { useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 import Link from "next/link";
-
-const PLACEHOLDER_NOTIFICATIONS = [
-  { title: "New match in Cupid's Corner", body: "You and DeepThinker liked each other.", time: "2m ago", type: "match", read: false },
-  { title: "Stream starting soon", body: "NovaStar is going live in The Creator's Market in 15 minutes.", time: "15m ago", type: "stream_start", read: false },
-  { title: "Trust score updated", body: "Your trust score increased to 72. Keep being a positive presence.", time: "1h ago", type: "system", read: true },
-  { title: "New message", body: "CupidVibes sent you a message.", time: "3h ago", type: "message", read: true },
-  { title: "Realm invite", body: "You have been invited to join Business Builder Realm.", time: "1d ago", type: "system", read: true },
-];
+import { useAuth } from "../components/AuthProvider";
+import { getMyNotifications, markAllNotificationsRead } from "@dreamrealm/api-client";
+import type { Notification } from "@dreamrealm/types";
 
 const TYPE_ICON: Record<string, string> = {
   match: "text-accent",
   message: "text-primary",
+  like: "text-accent",
+  tip: "text-warning",
   stream_start: "text-warning",
+  event_reminder: "text-warning",
   system: "text-text-muted",
 };
 
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function NotificationsPage() {
+  const { client, user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getMyNotifications(client);
+        if (!cancelled) setNotifications(data);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load notifications");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, user]);
+
+  const handleMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await markAllNotificationsRead(client);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mark notifications read");
+    }
+  };
+
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-glow">Notifications</h1>
-          <button className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-surface-light hover:text-text transition">
+          <button
+            onClick={handleMarkAllRead}
+            disabled={notifications.every((n) => n.is_read)}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted hover:bg-surface-light hover:text-text transition disabled:opacity-50"
+          >
             Mark all read
           </button>
         </div>
 
-        <div className="divide-y divide-border rounded-2xl border border-border bg-surface overflow-hidden">
-          {PLACEHOLDER_NOTIFICATIONS.map((n, i) => (
-            <div
-              key={i}
-              className={`flex items-start gap-3 px-5 py-4 transition hover:bg-surface-light ${
-                !n.read ? "bg-primary/5" : ""
-              }`}
-            >
-              <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${!n.read ? "bg-primary" : "bg-transparent"}`} />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-text">{n.title}</p>
-                <p className="mt-0.5 text-sm text-text-muted">{n.body}</p>
-                <p className={`mt-1 text-xs ${TYPE_ICON[n.type] ?? "text-text-muted"}`}>{n.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
-        {PLACEHOLDER_NOTIFICATIONS.length === 0 && (
+        {isLoading ? (
+          <p className="text-text-muted">Loading notifications...</p>
+        ) : (
+          <div className="divide-y divide-border rounded-2xl border border-border bg-surface overflow-hidden">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                className={`flex items-start gap-3 px-5 py-4 transition hover:bg-surface-light ${
+                  !n.is_read ? "bg-primary/5" : ""
+                }`}
+              >
+                <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${!n.is_read ? "bg-primary" : "bg-transparent"}`} />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-text">{n.title}</p>
+                  <p className="mt-0.5 text-sm text-text-muted">{n.body}</p>
+                  <p className={`mt-1 text-xs ${TYPE_ICON[n.type] ?? "text-text-muted"}`}>{formatTimeAgo(n.created_at)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isLoading && notifications.length === 0 && (
           <div className="py-20 text-center text-text-muted">No notifications yet.</div>
         )}
 
